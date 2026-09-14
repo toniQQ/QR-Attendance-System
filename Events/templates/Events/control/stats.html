@@ -1,0 +1,75 @@
+{% extends "Events/control/control_base.html" %}
+
+{% block title %}Statistics &middot; Control centre{% endblock %}
+{% block page_title %}Statistics{% endblock %}
+{% block nav_stats %}active{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <span class="stat-label">Events</span>
+    <strong class="stat-value">{{ totals.events }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Total registrations</span>
+    <strong class="stat-value">{{ totals.registrations }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Total check-ins</span>
+    <strong class="stat-value">{{ totals.check_ins }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Site conversion</span>
+    <strong class="stat-value">{{ totals.conversion }}%</strong>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2 class="section-title">Per-event overview</h2>
+    <a class="btn ghost" href="{% url 'events:stats_csv' %}">
+      <svg class="icon"><use href="#i-download"/></svg> Export CSV
+    </a>
+  </div>
+
+  {% if events %}
+  <div class="bar-chart">
+    {% for event in events %}
+      <div class="bar-row">
+        <div class="bar-label">
+          <a href="{% url 'events:event_stats' pk=event.pk %}">{{ event.name }}</a>
+        </div>
+        <div class="bar-track">
+          <div class="bar bar-checked" style="--bar-width: {% widthratio event.checked totals.check_ins 100 %}%"></div>
+        </div>
+        <div class="bar-nums">
+          <span>{{ event.checked }}/{{ event.total }} checked in</span>
+          <span class="muted">{% if event.total %}{% widthratio event.checked event.total 100 %}{% else %}0{% endif %}%</span>
+          <span class="muted">{{ event.pre }} pre / {{ event.walk }} walk</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">No events yet.</p>
+  {% endif %}
+</div>
+
+<div class="stat-grid">
+  <div class="card fill">
+    <h3 class="section-title">Status breakdown</h3>
+    <ul class="kv-list">
+      <li><span>Live</span><strong>{{ live_count }}</strong></li>
+      <li><span>Draft</span><strong>{{ draft_count }}</strong></li>
+      <li><span>Closed</span><strong>{{ closed_count }}</strong></li>
+    </ul>
+  </div>
+  <div class="card fill">
+    <h3 class="section-title">Registrations by source</h3>
+    <ul class="kv-list">
+      <li><span>Pre-registered</span><strong>{{ pre_total }}</strong></li>
+      <li><span>Walk-in</span><strong>{{ walk_total }}</strong></li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

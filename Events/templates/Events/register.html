@@ -1,0 +1,90 @@
+{% extends "Events/base.html" %}
+{% load static %}
+
+{% block title %}Check in &middot; {{ event.name }}{% endblock %}
+
+{% block var_primary %}{{ brand.primary_color }}{% endblock %}
+{% block var_accent %}{{ brand.accent_color }}{% endblock %}
+{% block var_grad_from %}{{ brand.gradient_from }}{% endblock %}
+{% block var_grad_to %}{{ brand.gradient_to }}{% endblock %}
+
+{% block body %}
+<div class="grad-band"></div>
+<main class="wrap center-wrap">
+  <div class="card checkin-card">
+    <a class="back-link" href="{% url 'events:event_page' slug=event.slug %}">
+      <svg class="icon"><use href="#i-arrow-right"/></svg> Back to event
+    </a>
+
+    {% if logos %}
+    <div class="logo-row checkin-logos logo-row--{{ brand.logo_align }}">
+      {% for logo in logos %}
+        <img src="{{ logo.image.url }}" alt="{{ logo.alt_text|default:event.name }}" />
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <h1 class="greeting">{% if brand.greeting_message %}{{ brand.greeting_message }}{% else %}Welcome to {{ event.name }}{% endif %}</h1>
+    {% if brand.welcome_subtitle %}
+      <p class="lead">{{ brand.welcome_subtitle }}</p>
+    {% endif %}
+
+    {% if brand.show_event_info and not closed %}
+      <ul class="chips">
+        {% if event.date %}
+          <li><svg class="icon"><use href="#i-calendar"/></svg> {{ event.date|date:"l, F j, Y" }}</li>
+        {% endif %}
+        {% if event.start_time %}
+          <li><svg class="icon"><use href="#i-clock"/></svg> {{ event.start_time|time:"g:i A" }}{% if event.end_time %}&ndash;{{ event.end_time|time:"g:i A" }}{% endif %}</li>
+        {% endif %}
+        {% if event.venue %}
+          <li><svg class="icon"><use href="#i-map-pin"/></svg> {{ event.venue }}</li>
+        {% endif %}
+      </ul>
+    {% endif %}
+
+    {% if closed %}
+      <div class="closed-state">
+        <svg class="icon icon-lg"><use href="#i-x"/></svg>
+        <h2>This event is closed</h2>
+        <p>Check-in is no longer accepting entries. Please see an organizer.</p>
+      </div>
+    {% else %}
+      <p class="hint">Enter your details below to mark yourself present.</p>
+
+      <form method="post" class="checkin-form">
+        {% csrf_token %}
+        {% for field in form %}
+          <label class="field">
+            <span class="field-label">{{ field.label }}</span>
+            {{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}
+          </label>
+        {% endfor %}
+        {% if pre_names %}
+          <datalist id="pre-registered">
+            {% for name in pre_names %}<option value="{{ name }}"></option>{% endfor %}
+          </datalist>
+          <script>
+            const input = document.querySelector('#id_full_name');
+            if (input) input.setAttribute('list', 'pre-registered');
+          </script>
+        {% endif %}
+        <button class="btn btn-lg btn-block" type="submit">
+          <svg class="icon"><use href="#i-check"/></svg> Mark me present
+        </button>
+      </form>
+
+      <div class="live-count" data-event-slug="{{ event.slug }}">
+        <svg class="icon"><use href="#i-users"/></svg>
+        <span><strong data-live-count>–</strong> people already checked in</span>
+      </div>
+    {% endif %}
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="wrap">{{ event.name }} &middot; {{ event.date|date:"M j, Y"|default:"Local event" }}</div>
+</footer>
+{% endblock %}

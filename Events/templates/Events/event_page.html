@@ -1,0 +1,125 @@
+{% extends "Events/base.html" %}
+{% load static %}
+
+{% block title %}{{ event.name }}{% endblock %}
+
+{% block var_primary %}{{ brand.primary_color }}{% endblock %}
+{% block var_accent %}{{ brand.accent_color }}{% endblock %}
+{% block var_grad_from %}{{ brand.gradient_from }}{% endblock %}
+{% block var_grad_to %}{{ brand.gradient_to }}{% endblock %}
+
+{% block body %}
+<div class="ev-hero">
+  <div class="wrap ev-hero__inner">
+    <div class="ev-hero__top">
+      <a class="back-link" href="{% url 'events:home' %}">
+        <svg class="icon"><use href="#i-home"/></svg> All events
+      </a>
+      <span class="status-pill status-pill--glass status-{{ event.status }}">
+        {% if event.status == "live" %}<span class="live-dot live-dot--live"></span>{% else %}<span class="live-dot"></span>{% endif %}
+        {{ event.get_status_display }}
+      </span>
+    </div>
+
+    {% if logos %}
+    <div class="logo-row logo-row--hero logo-row--{{ brand.logo_align }}">
+      {% for logo in logos %}
+        <img src="{{ logo.image.url }}" alt="{{ logo.alt_text|default:event.name }}" class="logo-hero" />
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <h1>{{ event.name }}</h1>
+    {% if brand.welcome_subtitle %}
+      <p class="lead">{{ brand.welcome_subtitle }}</p>
+    {% endif %}
+
+    <ul class="chips chips--hero ev-meta">
+      {% if event.date %}
+        <li><svg class="icon"><use href="#i-calendar"/></svg> {{ event.date|date:"D, M j Y" }}</li>
+      {% endif %}
+      {% if event.start_time %}
+        <li><svg class="icon"><use href="#i-clock"/></svg> {{ event.start_time|time:"g:i A" }}{% if event.end_time %}&ndash;{{ event.end_time|time:"g:i A" }}{% endif %}</li>
+      {% endif %}
+      {% if event.venue %}
+        <li><svg class="icon"><use href="#i-map-pin"/></svg> {{ event.venue }}</li>
+      {% endif %}
+      <li><svg class="icon"><use href="#i-user-check"/></svg> {{ event.checked_in_count }} checked in</li>
+      <li><svg class="icon"><use href="#i-users"/></svg> {{ event.registered_count }} registered</li>
+      {% if event.capacity %}
+        <li><svg class="icon"><use href="#i-building"/></svg> {{ event.capacity }} capacity</li>
+      {% endif %}
+    </ul>
+  </div>
+</div>
+
+<main class="wrap two-col">
+  <div class="stack">
+    {% if about_paragraphs %}
+    <section class="card">
+      <p class="section-kicker">About the event</p>
+      <h2 class="section-title">About this event</h2>
+      {% for paragraph in about_paragraphs %}
+        <p class="body-text">{{ paragraph }}</p>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    <section class="card ev-cta">
+      <div class="ev-cta__copy">
+        <h2>Ready to check in?</h2>
+        <p class="muted">Scan the code or open the link — it takes seconds.</p>
+      </div>
+      <a class="btn btn-lg" href="{% url 'events:register' slug=event.slug %}">
+        <svg class="icon"><use href="#i-user-check"/></svg>
+        Check in
+        <svg class="icon"><use href="#i-arrow-right"/></svg>
+      </a>
+    </section>
+
+    {% if recent %}
+    <section class="card">
+      <div class="card-head">
+        <h2 class="section-title">Recent check-ins</h2>
+        <span class="ev-feed__count">{{ recent|length }} just now</span>
+      </div>
+      <ul class="ev-feed__list">
+        {% for att in recent %}
+          <li class="ev-feed__row">
+            <span class="avatar">{{ att.full_name|slice:":1" }}</span>
+            <span class="ev-feed__name">{{ att.full_name }}</span>
+            <span class="ev-feed__time muted">{{ att.checked_in_at|timesince }} ago</span>
+            <span class="ev-feed__check"><svg class="icon"><use href="#i-check"/></svg></span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="card ev-ticket">
+    <div class="ev-ticket__head">
+      <h3 class="section-title">Scan to check in</h3>
+      <span class="ev-live-badge"><span class="live-dot live-dot--live"></span> Live</span>
+    </div>
+    <div class="ev-ticket__qr">
+      <img src="{% url 'events:event_qrcode' slug=event.slug %}" alt="Event QR code" width="220" height="220" />
+    </div>
+    <p class="hint">Scan this QR from a phone on the college network, or open the link below.</p>
+    <div class="share-row" data-copy-source>
+      <input class="share-link" type="text" value="{{ share_link }}" readonly data-copy-value />
+      <button class="btn ghost" type="button" data-copy-button>
+        <svg class="icon"><use href="#i-copy"/></svg> Copy
+      </button>
+    </div>
+    <div class="live-count" data-event-slug="{{ event.slug }}">
+      <svg class="icon"><use href="#i-users"/></svg>
+      <span><strong data-live-count>–</strong> people checked in</span>
+    </div>
+  </aside>
+</main>
+
+<footer class="footer">
+  <div class="wrap">Event hosted on the local network.</div>
+</footer>
+{% endblock %}

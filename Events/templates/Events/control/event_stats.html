@@ -1,0 +1,75 @@
+{% extends "Events/control/control_base.html" %}
+
+{% block title %}{{ event.name }} &middot; Statistics{% endblock %}
+{% block page_title %}{{ event.name }} stats{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <span class="stat-label">Registered</span>
+    <strong class="stat-value">{{ event.registered_count }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Checked in</span>
+    <strong class="stat-value">{{ event.checked_in_count }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Conversion</span>
+    <strong class="stat-value">{{ event.conversion_percent }}%</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Capacity</span>
+    <strong class="stat-value">{{ event.capacity|default:"&ndash;" }}</strong>
+  </div>
+</div>
+
+<div class="split">
+  <section class="card">
+    <div class="card-head">
+      <h2 class="section-title">Check-ins by hour</h2>
+      <a class="btn ghost btn-sm" href="{% url 'events:event_csv' pk=event.pk %}">
+        <svg class="icon"><use href="#i-download"/></svg> Attendees CSV
+      </a>
+    </div>
+    <div class="hour-chart">
+      {% for bucket in hourly %}
+        <div class="hour-col" title="{{ bucket.label }}: {{ bucket.count }}">
+          <div class="hour-bar" style="--bar-height: {% widthratio bucket.count max_hourly 100 %}%"></div>
+          <span class="hour-label">{{ bucket.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <aside class="card">
+    <h3 class="section-title">Registration sources</h3>
+    <div class="source-rows">
+      <div class="source-row">
+        <span>Pre-registered</span>
+        <div class="bar-track">
+          <div class="bar bar-accent" style="--bar-width: {% widthratio pre_count max_source 100 %}%"></div>
+        </div>
+        <strong>{{ pre_count }}</strong>
+      </div>
+      <div class="source-row">
+        <span>Walk-in</span>
+        <div class="bar-track">
+          <div class="bar bar-primary" style="--bar-width: {% widthratio walk_count max_source 100 %}%"></div>
+        </div>
+        <strong>{{ walk_count }}</strong>
+      </div>
+    </div>
+    <hr class="divider" />
+    <h3 class="section-title">Overview</h3>
+    <ul class="kv-list">
+      <li><span>Date</span><strong>{{ event.date|date:"F j, Y" }}</strong></li>
+      <li><span>Time</span><strong>{{ event.start_time|time:"g:i A"|default:"&ndash;" }}{% if event.end_time %} &ndash; {{ event.end_time|time:"g:i A" }}{% endif %}</strong></li>
+      <li><span>Venue</span><strong>{{ event.venue|default:"&ndash;" }}</strong></li>
+      <li><span>Slug</span><strong>/events/{{ event.slug }}/</strong></li>
+    </ul>
+    <div class="actions">
+      <a class="btn ghost btn-block" href="{% url 'events:event_detail' pk=event.pk %}">Back to tracking</a>
+    </div>
+  </aside>
+</div>
+{% endblock %}

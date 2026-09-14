@@ -1,0 +1,46 @@
+{% extends "Events/base.html" %}
+{% load static %}
+
+{% block title %}You're checked in &middot; {{ event.name }}{% endblock %}
+
+{% block var_primary %}{{ brand.primary_color }}{% endblock %}
+{% block var_accent %}{{ brand.accent_color }}{% endblock %}
+{% block var_grad_from %}{{ brand.gradient_from }}{% endblock %}
+{% block var_grad_to %}{{ brand.gradient_to }}{% endblock %}
+
+{% block body %}
+<div class="grad-band"></div>
+<main class="wrap center-wrap">
+  <div class="card success-card">
+    <div class="success-icon"><svg class="icon"><use href="#i-check"/></svg></div>
+    {% if status == "welcome_back" %}
+      <h1>You're all set, {{ attendee_name|default:"friend" }}</h1>
+      <p class="lead">You had already checked in to this event.</p>
+    {% else %}
+      <h1>You're checked in!</h1>
+      {% if attendee_name %}<p class="lead">Welcome, <strong>{{ attendee_name }}</strong>.</p>{% endif %}
+    {% endif %}
+
+    {% if logos %}
+    <div class="logo-row checkin-logos">
+      {% for logo in logos %}
+        <img src="{{ logo.image.url }}" alt="{{ logo.alt_text|default:event.name }}" />
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="live-count" data-event-slug="{{ event.slug }}">
+      <svg class="icon"><use href="#i-users"/></svg>
+      <span><strong data-live-count>–</strong> people checked in</span>
+    </div>
+
+    <div class="success-actions">
+      <a class="btn" href="{% url 'events:event_page' slug=event.slug %}">
+        <svg class="icon"><use href="#i-external"/></svg> View event
+      </a>
+      <a class="btn ghost" href="{% url 'events:register' slug=event.slug %}">Check in again</a>
+    </div>
+    <p class="hint">You may now close this page.</p>
+  </div>
+</main>
+{% endblock %}

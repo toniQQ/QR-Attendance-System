@@ -1,0 +1,40 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Events{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'Events/css/base.css' %}" />
+  <style>
+    :root {
+      --ev-primary: {% block var_primary %}#4f46e5{% endblock %};
+      --ev-accent: {% block var_accent %}#14b8a6{% endblock %};
+      --ev-gradient-from: {% block var_grad_from %}#4f46e5{% endblock %};
+      --ev-gradient-to: {% block var_grad_to %}#0f172a{% endblock %};
+    }
+    {% block extra_css %}{% endblock %}
+  </style>
+</head>
+<body>
+  {% include "Events/_svg_icons.html" %}
+  {% block topbar %}
+  {% if profile %}
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="{% url 'events:home' %}">
+        {% if profile.org_logo %}
+          <img src="{{ profile.org_logo.url }}" alt="" class="brand-logo" />
+        {% endif %}
+        {% if profile.org_name %}
+          <span class="brand-name">{{ profile.org_name }}</span>
+        {% endif %}
+      </a>
+    </div>
+  </header>
+  {% endif %}
+  {% endblock %}
+  {% block body %}{% endblock %}
+  <script src="{% static 'Events/js/app.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,144 @@
+{% extends "Events/control/control_base.html" %}
+
+{% block title %}{{ event.name }} &middot; Control centre{% endblock %}
+{% block page_title %}{{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-head wrap-tight">
+    <div class="event-head-badges">
+      <span class="badge badge-{{ event.status }}">{{ event.get_status_display }}</span>
+      {% if event.registered_count %}
+        <span class="badge">{{ event.checked_in_count }}/{{ event.registered_count }} checked in</span>
+      {% endif %}
+    </div>
+    <div class="actions">
+      <a class="btn ghost" href="{% url 'events:event_page' slug=event.slug %}" target="_blank" rel="noopener">
+        <svg class="icon"><use href="#i-eye"/></svg> View page
+      </a>
+      <a class="btn ghost" href="{% url 'events:event_stats' pk=event.pk %}">
+        <svg class="icon"><use href="#i-chart"/></svg> Stats
+      </a>
+      <a class="btn ghost" href="{% url 'events:event_edit' pk=event.pk %}">
+        <svg class="icon"><use href="#i-edit"/></svg> Edit
+      </a>
+    </div>
+  </div>
+
+  {% if event.status != "live" %}
+  <form method="post" class="inline-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="set_status" />
+    <input type="hidden" name="new_status" value="live" />
+    <button class="btn" type="submit">
+      <svg class="icon"><use href="#i-bolt"/></svg> Set Live
+    </button>
+  </form>
+  {% endif %}
+
+  {% if event.capacity %}
+  <div class="capacity-row">
+    <span class="muted">Capacity usage</span>
+    <div class="capacity-track">
+      <div class="capacity-fill" style="--cap-width: {% widthratio event.checked_in_count event.capacity 100 %}%"></div>
+    </div>
+    <span class="muted">{{ event.checked_in_count }} / {{ event.capacity }}</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="split">
+  <section class="card">
+    <div class="card-head">
+      <h2 class="section-title" id="attendees">Attendees ({{ attendees.count }})</h2>
+      <a class="btn ghost btn-sm" href="{% url 'events:event_csv' pk=event.pk %}">
+        <svg class="icon"><use href="#i-download"/></svg> CSV
+      </a>
+    </div>
+
+    <form method="get" class="search-row">
+      <svg class="icon icon-inner"><use href="#i-search"/></svg>
+      <input class="search-input" type="search" name="q" value="{{ q }}" placeholder="Search name, phone, email" />
+    </form>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Institution</th>
+          <th>Source</th>
+          <th>Checked in</th>
+          <th class="th-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for att in attendees %}
+        <tr>
+          <td>
+            <strong>{{ att.full_name }}</strong>
+            {% if att.phone or att.email %}
+              <small class="muted block">{{ att.phone }}{% if att.phone and att.email %} &middot; {% endif %}{{ att.email }}</small>
+            {% endif %}
+          </td>
+          <td>
+            {% if att.institution %}
+              <span class="badge">{{ att.institution.name }}</span>
+            {% elif att.institution_other %}
+              <span class="badge badge-walk_in">{{ att.institution_other }}</span>
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </td>
+          <td><span class="badge badge-{{ att.source }}">{{ att.get_source_display }}</span></td>
+          <td>
+            {% if att.checked_in_at %}
+              <span class="check-dot"></span> {{ att.checked_in_at|date:"M j, H:i" }}
+            {% else %}
+              <span class="muted">not checked in</span>
+            {% endif %}
+          </td>
+          <td class="actions">
+            <form method="post" class="inline-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="toggle_checkin" />
+              <input type="hidden" name="attendee_id" value="{{ att.pk }}" />
+              <button class="icon-btn" type="submit" title="{% if att.checked_in_at %}Undo check-in{% else %}Check in{% endif %}">
+                <svg class="icon"><use href="#i-user-check"/></svg>
+              </button>
+            </form>
+            <form method="post" class="inline-form" onsubmit="return confirm('Remove {{ att.full_name }}?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_attendee" />
+              <input type="hidden" name="attendee_id" value="{{ att.pk }}" />
+              <button class="icon-btn danger" type="submit" title="Remove">
+                <svg class="icon"><use href="#i-trash"/></svg>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="muted">No attendees{% if q %} matching "{{ q }}"{% endif %}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <aside class="card">
+    <h3 class="section-title">Pre-register attendee</h3>
+    <p class="hint">Add invited guests here; they can then check in by name from their phone.</p>
+    <form method="post" class="stack-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_attendee" />
+      {% for field in add_form %}
+        <label class="field">
+          <span class="field-label">{{ field.label }}</span>
+          {{ field }}
+        </label>
+      {% endfor %}
+      <button class="btn" type="submit">
+        <svg class="icon"><use href="#i-plus"/></svg> Add attendee
+      </button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

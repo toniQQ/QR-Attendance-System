@@ -1,0 +1,89 @@
+{% extends "Events/base.html" %}
+{% load static %}
+
+{% block title %}{{ profile.org_name|default:"Event Portal" }}{% endblock %}
+
+{% block var_primary %}#4f46e5{% endblock %}
+{% block var_accent %}#14b8a6{% endblock %}
+{% block var_grad_from %}#4f46e5{% endblock %}
+{% block var_grad_to %}#0f172a{% endblock %}
+
+{% block topbar %}{% endblock %}
+
+{% block body %}
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="{% url 'events:home' %}">
+      {% if profile and profile.org_logo %}
+        <img src="{{ profile.org_logo.url }}" alt="" class="brand-logo" />
+      {% endif %}
+      <span class="brand-name">{{ profile.org_name|default:"Event Portal" }}</span>
+    </a>
+    <a class="btn ghost btn-sm" href="{% url 'events:control_dashboard' %}">
+      <svg class="icon"><use href="#i-gear"/></svg> Admin
+    </a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">conferences &amp; workshops</span>
+    <h1>{{ profile.org_name|default:"Events Portal" }}</h1>
+    {% if profile and profile.tagline %}
+      <p class="lead">{{ profile.tagline }}</p>
+    {% else %}
+      <p class="lead">Scan the QR of any event to check in.</p>
+    {% endif %}
+  </div>
+</section>
+
+<main class="wrap">
+  <div class="grid-cards">
+    {% for event in events %}
+      <a class="event-card" href="{% url 'events:event_page' slug=event.slug %}" style="--card-from: {{ event.theme.gradient_from }}; --card-to: {{ event.theme.gradient_to }}; --card-accent: {{ event.theme.primary_color }};">
+        {% with first_logo=event.logos.first %}
+        <div class="card-banner">
+          {% if first_logo %}
+            <img class="card-watermark" src="{{ first_logo.image.url }}" alt="" aria-hidden="true" />
+            <img class="card-logo" src="{{ first_logo.image.url }}" alt="{{ event.name }}" />
+          {% else %}
+            <svg class="icon icon-card"><use href="#i-bolt"/></svg>
+          {% endif %}
+          <span class="status-pill status-{{ event.status }}">{{ event.get_status_display }}</span>
+        </div>
+        {% endwith %}
+        <div class="card-body">
+          <h3>{{ event.name }}</h3>
+          <ul class="chips">
+            {% if event.date %}
+              <li><svg class="icon"><use href="#i-calendar"/></svg> {{ event.date|date:"M j, Y" }}</li>
+            {% endif %}
+            {% if event.venue %}
+              <li><svg class="icon"><use href="#i-map-pin"/></svg> {{ event.venue }}</li>
+            {% endif %}
+          </ul>
+          <div class="card-meta">
+            <span><strong>{{ event.checked }}</strong> checked in</span>
+            <span><strong>{{ event.total }}</strong> registered</span>
+          </div>
+          <span class="btn card-cta">
+            Open event <svg class="icon"><use href="#i-arrow-right"/></svg>
+          </span>
+        </div>
+      </a>
+    {% empty %}
+      <div class="empty-state">
+        <svg class="icon icon-lg"><use href="#i-building"/></svg>
+        <h3>No events yet</h3>
+        <p>Ask an administrator to create the first event.</p>
+      </div>
+    {% endfor %}
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    &copy; {% now "Y" %} {{ profile.org_name|default:"Event Portal" }}
+  </div>
+</footer>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Control centre{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'Events/css/base.css' %}" />
+  <link rel="stylesheet" href="{% static 'Events/css/control.css' %}" />
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="control-body">
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="side-brand" href="{% url 'events:control_dashboard' %}">
+        {% if profile and profile.org_logo %}
+          <img src="{{ profile.org_logo.url }}" alt="" class="brand-logo" />
+        {% endif %}
+        <span>{{ profile.org_name|default:"Control centre" }}</span>
+      </a>
+      <nav class="side-nav">
+        <a class="side-link {% block nav_dashboard %}{% endblock %}" href="{% url 'events:control_dashboard' %}">
+          <svg class="icon"><use href="#i-home"/></svg> Dashboard
+        </a>
+        <a class="side-link {% block nav_stats %}{% endblock %}" href="{% url 'events:control_stats' %}">
+          <svg class="icon"><use href="#i-chart"/></svg> Statistics
+        </a>
+        <a class="side-link" href="{% url 'events:event_create' %}">
+          <svg class="icon"><use href="#i-plus"/></svg> New event
+        </a>
+      </nav>
+      <div class="side-foot">
+        <a class="side-link" href="{% url 'events:home' %}" target="_blank" rel="noopener">
+          <svg class="icon"><use href="#i-external"/></svg> View site
+        </a>
+        <a class="side-link" href="{% url 'admin:index' %}">
+          <svg class="icon"><use href="#i-gear"/></svg> Django admin
+        </a>
+        <form method="post" action="{% url 'admin:logout' %}">
+          {% csrf_token %}
+          <button class="side-link side-button" type="submit">
+            <svg class="icon"><use href="#i-logout"/></svg> Sign out
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="content">
+      <header class="topbar">
+        <div class="wrap topbar-inner">
+          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+          <div class="topbar-user">
+            <span class="avatar">{{ request.user.get_username|slice:":1"|upper }}</span>
+            <span>{{ request.user.get_username }}</span>
+          </div>
+        </div>
+      </header>
+
+      {% if messages %}
+      <div class="wrap">
+        {% for message in messages %}
+          <div class="flash flash-{{ message.tags|default:'info' }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <main class="wrap content-pad">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  <script src="{% static 'Events/js/app.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

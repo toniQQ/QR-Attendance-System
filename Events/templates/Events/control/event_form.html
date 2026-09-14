@@ -1,0 +1,187 @@
+{% extends "Events/control/control_base.html" %}
+
+{% block title %}{% if editing %}Edit {{ event.name }}{% else %}New event{% endif %}{% endblock %}
+{% block page_title %}{% if editing %}Edit event{% else %}New event{% endif %}{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="form-layout">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="card form-card"><small class="error">{{ form.non_field_errors }}</small></div>
+  {% endif %}
+
+  <div class="card form-card">
+    <h2 class="section-title">Name &amp; link</h2>
+    <label class="field">
+      <span class="field-label">Event name</span>
+      {{ form.name }}
+      <small class="hint">The slug is generated from the name; edit it for a custom event link.</small>
+      {% for error in form.name.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </label>
+    <label class="field">
+      <span class="field-label">Custom link (slug)</span>
+      {{ form.slug }}
+      {% for error in form.slug.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </label>
+  </div>
+
+  <div class="card form-card">
+    <h2 class="section-title">Logo</h2>
+    <p class="hint">The logo row themes the event page with its colors automatically.</p>
+    {% if logos %}
+      <ul class="logo-manager">
+        {% for logo in logos %}
+          <li class="logo-manager-item">
+            <img src="{{ logo.image.url }}" alt="{{ logo.alt_text|default:logo }}" />
+            <span>{{ logo.alt_text|default:logo }}</span>
+            <span class="actions">
+              <form method="post" action="{% url 'events:delete_logo' pk=logo.pk %}" onsubmit="return confirm('Delete this logo?');">
+                {% csrf_token %}
+                <button class="icon-btn danger" type="submit" title="Delete logo">
+                  <svg class="icon"><use href="#i-trash"/></svg>
+                </button>
+              </form>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="hint">No logos yet. Add one at a time below &mdash; save again to add another.</p>
+    {% endif %}
+    <label class="field">
+      <span class="field-label">{{ form.logo.label }}</span>
+      {{ form.logo }}
+      {% if form.logo.help_text %}<small class="hint">{{ form.logo.help_text }}</small>{% endif %}
+      {% for error in form.logo.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </label>
+    <label class="field">
+      <span class="field-label">Logo alignment</span>
+      {{ form.logo_align }}
+      <small class="hint">Where the logo row sits on the event and check-in pages (left, center or right).</small>
+    </label>
+  </div>
+
+  <div class="card form-card">
+    <div class="card-head">
+      <h2 class="section-title">Check-in page &amp; branding</h2>
+      <p class="hint">This themes the QR page attendees land on: colors, greeting message. Colors auto-derive from the logo unless you change them here.</p>
+    </div>
+
+    <div class="color-grid" data-color-preview>
+      <label class="field color-field">
+        <span class="field-label">Primary color</span>
+        {{ form.primary_color }}
+      </label>
+      <label class="field color-field">
+        <span class="field-label">Accent color</span>
+        {{ form.accent_color }}
+      </label>
+      <label class="field color-field">
+        <span class="field-label">Gradient from</span>
+        {{ form.gradient_from }}
+      </label>
+      <label class="field color-field">
+        <span class="field-label">Gradient to</span>
+        {{ form.gradient_to }}
+      </label>
+    </div>
+    {% for error in form.primary_color.errors %}<small class="error">{{ error }}</small>{% endfor %}
+
+    <div class="gradient-swatch" data-gradient-swatch></div>
+
+    <label class="field">
+      <span class="field-label">Greeting message</span>
+      {{ form.greeting_message }}
+      <small class="hint">Shown big on the page attendees see when they scan the QR.</small>
+      {% for error in form.greeting_message.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </label>
+    <label class="field">
+      <span class="field-label">Welcome subtitle</span>
+      {{ form.welcome_subtitle }}
+      {% for error in form.welcome_subtitle.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </label>
+    <label class="checkbox-row"> {{ form.show_event_info }}
+      <span>Show event details (date, time, venue) on the check-in page</span>
+    </label>
+  </div>
+
+  <div class="card form-card">
+    <h2 class="section-title">Institutions attending</h2>
+    <p class="hint">Attendees pick from this list on the check-in page, or choose "Other" to type their own.</p>
+    <label class="field">
+      <span class="field-label">{{ form.attending_institutions.label }}</span>
+      {{ form.attending_institutions }}
+      {% if form.attending_institutions.help_text %}<small class="hint">{{ form.attending_institutions.help_text }}</small>{% endif %}
+      {% for error in form.attending_institutions.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </label>
+    <label class="field">
+      <span class="field-label">Quick add</span>
+      {{ form.institution_new }}
+      <small class="hint">Type a name here to create it and add it to the list above in one go.</small>
+    </label>
+  </div>
+
+  <div class="card form-card">
+    <h2 class="section-title">Event details</h2>
+    <label class="field">
+      <span class="field-label">Description</span>
+      {{ form.description }}
+    </label>
+    <div class="two-inline">
+      <label class="field">
+        <span class="field-label">Date</span>
+        {{ form.date }}
+      </label>
+      <label class="field">
+        <span class="field-label">Capacity</span>
+        {{ form.capacity }}
+      </label>
+    </div>
+    <div class="two-inline">
+      <label class="field">
+        <span class="field-label">Start time</span>
+        {{ form.start_time }}
+      </label>
+      <label class="field">
+        <span class="field-label">End time</span>
+        {{ form.end_time }}
+      </label>
+    </div>
+    <label class="field">
+      <span class="field-label">Venue</span>
+      {{ form.venue }}
+    </label>
+    <label class="field">
+      <span class="field-label">Status</span>
+      {{ form.status }}
+    </label>
+    {% for error in form.description.errors %}<small class="error">{{ error }}</small>{% endfor %}
+  </div>
+
+  {% if editing %}
+  <div class="card form-card">
+    <h2 class="section-title">QR &amp; share link</h2>
+    <div class="qr-preview">
+      <img class="qr-image" src="{% url 'events:event_qrcode' slug=event.slug %}" alt="Event QR" width="180" height="180" />
+      <div class="qr-info">
+        <p class="hint">This QR encodes a check-in link that works on the college network. It re-renders with your theme automatically.</p>
+        <div class="share-row" data-copy-source>
+          <input class="share-link" type="text" value="{{ share_link }}" readonly data-copy-value />
+          <button class="btn ghost" type="button" data-copy-button>
+            <svg class="icon"><use href="#i-copy"/></svg> Copy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="form-actions">
+    <button class="btn btn-lg" type="submit">
+      {% if editing %}Save changes{% else %}Create event{% endif %}
+    </button>
+    <a class="btn ghost btn-lg" href="{% url 'events:control_dashboard' %}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

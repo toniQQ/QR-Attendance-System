@@ -1,0 +1,79 @@
+{% extends "Events/control/control_base.html" %}
+
+{% block title %}Dashboard &middot; Control centre{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <span class="stat-label">Events</span>
+    <strong class="stat-value">{{ totals.events }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Registrations</span>
+    <strong class="stat-value">{{ totals.registrations }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Checked in</span>
+    <strong class="stat-value">{{ totals.check_ins }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Conversion</span>
+    <strong class="stat-value">
+      {% if totals.registrations %}{% widthratio totals.check_ins totals.registrations 100 %}{% else %}0{% endif %}%
+    </strong>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2 class="section-title">Events</h2>
+    <a class="btn" href="{% url 'events:event_create' %}">
+      <svg class="icon"><use href="#i-plus"/></svg> New event
+    </a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Event</th>
+        <th>Status</th>
+        <th>Date</th>
+        <th>Registered</th>
+        <th>Checked in</th>
+        <th class="th-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for event in events %}
+      <tr>
+        <td>
+          <strong>{{ event.name }}</strong>
+          <small class="muted">/events/{{ event.slug }}/</small>
+        </td>
+        <td><span class="badge badge-{{ event.status }}">{{ event.get_status_display }}</span></td>
+        <td class="muted">{{ event.date|date:"M j, Y" }}</td>
+        <td>{{ event.total }}</td>
+        <td>{{ event.checked }}</td>
+        <td class="actions">
+          <a class="icon-btn" href="{% url 'events:event_page' slug=event.slug %}" target="_blank" rel="noopener" title="Open event page">
+            <svg class="icon"><use href="#i-external"/></svg>
+          </a>
+          <a class="icon-btn" href="{% url 'events:event_detail' pk=event.pk %}" title="Track attendees">
+            <svg class="icon"><use href="#i-users"/></svg>
+          </a>
+          <a class="icon-btn" href="{% url 'events:event_stats' pk=event.pk %}" title="Statistics">
+            <svg class="icon"><use href="#i-chart"/></svg>
+          </a>
+          <a class="icon-btn" href="{% url 'events:event_edit' pk=event.pk %}" title="Edit / branding">
+            <svg class="icon"><use href="#i-edit"/></svg>
+          </a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="muted">No events yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
