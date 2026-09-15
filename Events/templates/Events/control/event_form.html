@@ -36,12 +36,11 @@
             <img src="{{ logo.image.url }}" alt="{{ logo.alt_text|default:logo }}" />
             <span>{{ logo.alt_text|default:logo }}</span>
             <span class="actions">
-              <form method="post" action="{% url 'events:delete_logo' pk=logo.pk %}" onsubmit="return confirm('Delete this logo?');">
-                {% csrf_token %}
-                <button class="icon-btn danger" type="submit" title="Delete logo">
-                  <svg class="icon"><use href="#i-trash"/></svg>
-                </button>
-              </form>
+              <button class="icon-btn danger" type="button" title="Delete logo"
+                      data-delete-url="{% url 'events:delete_logo' pk=logo.pk %}"
+                      data-confirm="Delete this logo?">
+                <svg class="icon"><use href="#i-trash"/></svg>
+              </button>
             </span>
           </li>
         {% endfor %}
@@ -107,6 +106,84 @@
   </div>
 
   <div class="card form-card">
+    <h2 class="section-title">Check-in sessions</h2>
+    <p class="hint">Split the day into morning and afternoon check-ins so you can account for each part of the day separately.</p>
+    <label class="field">
+      <span class="field-label">{{ form.sessions.label }}</span>
+      {{ form.sessions }}
+      {% if form.sessions.help_text %}<small class="hint">{{ form.sessions.help_text }}</small>{% endif %}
+      {% for error in form.sessions.errors %}<small class="error">{{ error }}</small>{% endfor %}
+    </label>
+    <div class="two-inline">
+      <label class="field">
+        <span class="field-label">{{ form.morning_label.label }}</span>
+        {{ form.morning_label }}
+      </label>
+      <label class="field">
+        <span class="field-label">{{ form.afternoon_label.label }}</span>
+        {{ form.afternoon_label }}
+      </label>
+    </div>
+  </div>
+
+  <div class="card form-card">
+    <div class="card-head">
+      <h2 class="section-title">Meeting materials</h2>
+      {% if editing %}
+      <a class="btn ghost btn-sm" href="{% url 'events:event_materials' slug=event.slug %}" target="_blank" rel="noopener">
+        <svg class="icon"><use href="#i-external"/></svg> View page
+      </a>
+      {% endif %}
+    </div>
+    <p class="hint">Documents, Wi-Fi instructions, rooms, itinerary or the programme &mdash; attendees see these on the materials page after check-in.</p>
+    {% if materials %}
+      <ul class="logo-manager">
+        {% for material in materials %}
+          <li class="logo-manager-item">
+            <span class="material-kind">{{ material.get_kind_display }}</span>
+            <strong>{{ material.title }}</strong>
+            <span class="actions">
+              <button class="icon-btn danger" type="button" title="Remove material"
+                      data-delete-url="{% url 'events:delete_material' pk=material.pk %}"
+                      data-confirm="Remove this material?">
+                <svg class="icon"><use href="#i-trash"/></svg>
+              </button>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="hint">No materials yet. Add one below, then save.</p>
+    {% endif %}
+    <div class="two-inline">
+      <label class="field">
+        <span class="field-label">{{ form.material_kind.label }}</span>
+        {{ form.material_kind }}
+      </label>
+      <label class="field">
+        <span class="field-label">{{ form.material_title.label }}</span>
+        {{ form.material_title }}
+        {% for error in form.material_title.errors %}<small class="error">{{ error }}</small>{% endfor %}
+      </label>
+    </div>
+    <label class="field">
+      <span class="field-label">{{ form.material_body.label }}</span>
+      {{ form.material_body }}
+    </label>
+    <div class="two-inline">
+      <label class="field">
+        <span class="field-label">{{ form.material_file.label }}</span>
+        {{ form.material_file }}
+      </label>
+      <label class="field">
+        <span class="field-label">{{ form.material_link.label }}</span>
+        {{ form.material_link }}
+      </label>
+    </div>
+    <p class="hint">Add one at a time &mdash; save again to add another. Provide a file or a link (or both).</p>
+  </div>
+
+  <div class="card form-card">
     <h2 class="section-title">Institutions attending</h2>
     <p class="hint">Attendees pick from this list on the check-in page, or choose "Other" to type their own.</p>
     <label class="field">
@@ -130,12 +207,13 @@
     </label>
     <div class="two-inline">
       <label class="field">
-        <span class="field-label">Date</span>
+        <span class="field-label">Start date</span>
         {{ form.date }}
       </label>
       <label class="field">
-        <span class="field-label">Capacity</span>
-        {{ form.capacity }}
+        <span class="field-label">End date <small>(blank = single day)</small></span>
+        {{ form.end_date }}
+        {% for error in form.end_date.errors %}<small class="error">{{ error }}</small>{% endfor %}
       </label>
     </div>
     <div class="two-inline">
@@ -148,10 +226,16 @@
         {{ form.end_time }}
       </label>
     </div>
-    <label class="field">
-      <span class="field-label">Venue</span>
-      {{ form.venue }}
-    </label>
+    <div class="two-inline">
+      <label class="field">
+        <span class="field-label">Capacity</span>
+        {{ form.capacity }}
+      </label>
+      <label class="field">
+        <span class="field-label">Venue</span>
+        {{ form.venue }}
+      </label>
+    </div>
     <label class="field">
       <span class="field-label">Status</span>
       {{ form.status }}

@@ -22,6 +22,14 @@
     <span class="stat-label">Site conversion</span>
     <strong class="stat-value">{{ totals.conversion }}%</strong>
   </div>
+  <div class="stat-card">
+    <span class="stat-label">Morning check-ins</span>
+    <strong class="stat-value">{{ totals.morning }}</strong>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Afternoon check-ins</span>
+    <strong class="stat-value">{{ totals.afternoon }}</strong>
+  </div>
 </div>
 
 <div class="card">
@@ -45,6 +53,9 @@
         <div class="bar-nums">
           <span>{{ event.checked }}/{{ event.total }} checked in</span>
           <span class="muted">{% if event.total %}{% widthratio event.checked event.total 100 %}{% else %}0{% endif %}%</span>
+          {% if event.sessions == "split" %}
+            <span class="muted">{{ event.morn }} {{ event.morning_label|default:"M" }} / {{ event.aft }} {{ event.afternoon_label|default:"A" }}</span>
+          {% endif %}
           <span class="muted">{{ event.pre }} pre / {{ event.walk }} walk</span>
         </div>
       </div>

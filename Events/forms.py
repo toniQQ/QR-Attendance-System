@@ -4,7 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 
-from .models import Attendee, Event, EventBrand, Institution
+from .models import Attendee, Event, EventBrand, Institution, MeetingMaterial
 
 HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
@@ -61,6 +61,22 @@ class EventForm(forms.ModelForm):
         widget=forms.TextInput(attrs={"placeholder": "New institution name"}),
     )
 
+    material_kind = forms.ChoiceField(
+        required=False,
+        choices=MeetingMaterial.Kind.choices,
+        label="Material type",
+    )
+    material_title = forms.CharField(
+        required=False, max_length=200, label="Title"
+    )
+    material_body = forms.CharField(
+        required=False,
+        label="Details",
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+    material_file = forms.FileField(required=False, label="File (optional)")
+    material_link = forms.URLField(required=False, label="Link (optional)")
+
     class Meta:
         model = Event
         fields = [
@@ -68,15 +84,20 @@ class EventForm(forms.ModelForm):
             "slug",
             "description",
             "date",
+            "end_date",
             "start_time",
             "end_time",
             "venue",
             "capacity",
             "status",
+            "sessions",
+            "morning_label",
+            "afternoon_label",
             "attending_institutions",
         ]
         widgets = {
             "date": forms.DateInput(attrs={"type": "date"}),
+            "end_date": forms.DateInput(attrs={"type": "date"}),
             "start_time": forms.TimeInput(attrs={"type": "time"}),
             "end_time": forms.TimeInput(attrs={"type": "time"}),
             "description": forms.Textarea(attrs={"rows": 4}),
@@ -88,6 +109,16 @@ class EventForm(forms.ModelForm):
             value = cleaned.get(key)
             if value:
                 cleaned[key] = value.lower()
+        material_used = any(
+            cleaned.get(key)
+            for key in ("material_kind", "material_body", "material_file", "material_link")
+        )
+        if material_used and not (cleaned.get("material_title") or "").strip():
+            self.add_error("material_title", "Add a title for the material.")
+        start = cleaned.get("date")
+        end = cleaned.get("end_date")
+        if start and end and end < start:
+            self.add_error("end_date", "End date must be on or after the start date.")
         return cleaned
 
     def clean_slug(self):

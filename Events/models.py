@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class SiteProfile(models.Model):
@@ -43,12 +44,29 @@ class Event(models.Model):
     )
     description = models.TextField(blank=True)
     date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     venue = models.CharField(max_length=200, blank=True)
     capacity = models.PositiveIntegerField(null=True, blank=True)
+    class Sessions(models.TextChoices):
+        SINGLE = "single", "Single session (all-day)"
+        SPLIT = "split", "Morning & afternoon"
+
     status = models.CharField(
         max_length=10, choices=Status.choices, default=Status.DRAFT
+    )
+    sessions = models.CharField(
+        max_length=10,
+        choices=Sessions.choices,
+        default=Sessions.SINGLE,
+        help_text="Split the day into separate morning and afternoon check-ins.",
+    )
+    morning_label = models.CharField(
+        max_length=40, default="Morning", blank=True
+    )
+    afternoon_label = models.CharField(
+        max_length=40, default="Afternoon", blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -66,6 +84,15 @@ class Event(models.Model):
     @property
     def checked_in_count(self):
         return self.attendees.filter(checked_in_at__isnull=False).count()
+
+    @property
+    def checked_in_today_count(self):
+        return (
+            self.attendees.filter(attendance_logs__day=timezone.localdate())
+            .values("pk")
+            .distinct()
+            .count()
+        )
 
     @property
     def conversion_percent(self):
@@ -145,3 +172,52 @@ class Attendee(models.Model):
 
     def __str__(self):
         return f"{self.full_name} @ {self.event.name}"
+
+
+class AttendanceLog(models.Model):
+    class Session(models.TextChoices):
+        SINGLE = "single", "Single"
+        MORNING = "morning", "Morning"
+        AFTERNOON = "afternoon", "Afternoon"
+
+    attendee = models.ForeignKey(
+        Attendee, on_delete=models.CASCADE, related_name="attendance_logs"
+    )
+    day = models.DateField()
+    session = models.CharField(max_length=10, choices=Session.choices)
+    checked_in_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = [("attendee", "day", "session")]
+        ordering = ["day", "session"]
+
+    def __str__(self):
+        return f"{self.attendee.full_name} {self.day} {self.get_session_display()}"
+
+
+class MeetingMaterial(models.Model):
+    class Kind(models.TextChoices):
+        DOCUMENT = "document", "Document"
+        INSTRUCTIONS = "instructions", "Instructions"
+        WIFI = "wifi", "Wi-Fi"
+        ROOMS = "rooms", "Rooms"
+        ITINERARY = "itinerary", "Itinerary"
+        PROGRAMME = "programme", "Programme"
+
+    event = models.ForeignKey(
+        Event, on_delete=models.CASCADE, related_name="materials"
+    )
+    kind = models.CharField(
+        max_length=15, choices=Kind.choices, default=Kind.DOCUMENT
+    )
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    file = models.FileField(upload_to="materials/", blank=True)
+    link = models.URLField(blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.title}"

@@ -50,7 +50,7 @@
 <div class="split">
   <section class="card">
     <div class="card-head">
-      <h2 class="section-title" id="attendees">Attendees ({{ attendees.count }})</h2>
+      <h2 class="section-title" id="attendees">Attendees ({{ attendee_count }})</h2>
       <a class="btn ghost btn-sm" href="{% url 'events:event_csv' pk=event.pk %}">
         <svg class="icon"><use href="#i-download"/></svg> CSV
       </a>
@@ -73,7 +73,7 @@
       </thead>
       <tbody>
         {% for att in attendees %}
-        <tr>
+                <tr>
           <td>
             <strong>{{ att.full_name }}</strong>
             {% if att.phone or att.email %}
@@ -91,21 +91,50 @@
           </td>
           <td><span class="badge badge-{{ att.source }}">{{ att.get_source_display }}</span></td>
           <td>
-            {% if att.checked_in_at %}
-              <span class="check-dot"></span> {{ att.checked_in_at|date:"M j, H:i" }}
+            {% if event.sessions == "split" %}
+              <div class="session-tags" title="Today, {{ today|date:'M j' }}">
+                <span class="session-tag {% if att.morning_time %}on{% endif %}">M&nbsp;{{ att.morning_time|time:"H:i"|default:"—" }}</span>
+                <span class="session-tag {% if att.afternoon_time %}on{% endif %}">A&nbsp;{{ att.afternoon_time|time:"H:i"|default:"—" }}</span>
+              </div>
+              <small class="muted block">for {{ today|date:"M j" }}</small>
             {% else %}
-              <span class="muted">not checked in</span>
+              {% if att.checked_in_at %}
+                <span class="check-dot"></span> {{ att.checked_in_at|date:"M j, H:i" }}
+              {% else %}
+                <span class="muted">not checked in</span>
+              {% endif %}
             {% endif %}
           </td>
           <td class="actions">
-            <form method="post" class="inline-form">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="toggle_checkin" />
-              <input type="hidden" name="attendee_id" value="{{ att.pk }}" />
-              <button class="icon-btn" type="submit" title="{% if att.checked_in_at %}Undo check-in{% else %}Check in{% endif %}">
-                <svg class="icon"><use href="#i-user-check"/></svg>
-              </button>
-            </form>
+            {% if event.sessions == "split" %}
+              <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_checkin" />
+                <input type="hidden" name="attendee_id" value="{{ att.pk }}" />
+                <input type="hidden" name="session" value="morning" />
+                <button class="icon-btn" type="submit" title="Toggle {{ event.morning_label }} check-in">
+                  <span class="session-btn">M</span>
+                </button>
+              </form>
+              <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_checkin" />
+                <input type="hidden" name="attendee_id" value="{{ att.pk }}" />
+                <input type="hidden" name="session" value="afternoon" />
+                <button class="icon-btn" type="submit" title="Toggle {{ event.afternoon_label }} check-in">
+                  <span class="session-btn">A</span>
+                </button>
+              </form>
+            {% else %}
+              <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_checkin" />
+                <input type="hidden" name="attendee_id" value="{{ att.pk }}" />
+                <button class="icon-btn" type="submit" title="{% if att.checked_in_at %}Undo check-in{% else %}Check in{% endif %}">
+                  <svg class="icon"><use href="#i-user-check"/></svg>
+                </button>
+              </form>
+            {% endif %}
             <form method="post" class="inline-form" onsubmit="return confirm('Remove {{ att.full_name }}?');">
               {% csrf_token %}
               <input type="hidden" name="action" value="delete_attendee" />

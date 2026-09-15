@@ -18,7 +18,16 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .forms import AttendeeForm, CheckInForm, EventForm
-from .models import Attendee, Event, EventBrand, EventLogo, Institution, SiteProfile
+from .models import (
+    AttendanceLog,
+    Attendee,
+    Event,
+    EventBrand,
+    EventLogo,
+    Institution,
+    MeetingMaterial,
+    SiteProfile,
+)
 from .utils import checkin_url, dominant_colors, darken, local_base_url, qr_png_response
 
 
@@ -55,6 +64,91 @@ def _match_or_create_attendee(event, name, phone="", email=""):
         source=Attendee.Source.WALK_IN,
     )
     return att, True
+
+
+def _today():
+    return timezone.localdate()
+
+
+def _event_dates(event):
+    """All dates the event runs on (date .. end_date inclusive)."""
+    dates = []
+    if not event.date:
+        return dates
+    dates = [event.date]
+    if event.end_date and event.end_date > event.date:
+        d = event.date
+        while d < event.end_date:
+            d += datetime.timedelta(days=1)
+            dates.append(d)
+    return dates
+
+
+def _current_session(event, now=None):
+    """Which session a check-in at `now` belongs to. Split events switch
+    from morning to afternoon at 12:00 local time."""
+    if event.sessions != Event.Sessions.SPLIT:
+        return AttendanceLog.Session.SINGLE
+    local_time = timezone.localtime(now).time() if now else timezone.localtime().time()
+    return (
+        AttendanceLog.Session.AFTERNOON
+        if local_time >= datetime.time(12, 0)
+        else AttendanceLog.Session.MORNING
+    )
+
+
+def _session_label(event, session):
+    if session == AttendanceLog.Session.MORNING:
+        return event.morning_label or "Morning"
+    if session == AttendanceLog.Session.AFTERNOON:
+        return event.afternoon_label or "Afternoon"
+    return ""
+
+
+def _record_check_in(attendee, now=None):
+    """Record an attendance for today's auto-detected session. Returns
+    (already_recorded, session) so the UI can grey out duplicates for the
+    same day + session."""
+    now = now or timezone.now()
+    event = attendee.event
+    session = _current_session(event, now)
+    day = timezone.localdate(now)
+    log, _ = AttendanceLog.objects.get_or_create(
+        attendee=attendee, day=day, session=session
+    )
+    already = log.checked_in_at is not None
+    if not already:
+        log.checked_in_at = now
+        log.save(update_fields=["checked_in_at"])
+        if attendee.checked_in_at is None:
+            attendee.checked_in_at = now
+            attendee.save(update_fields=["checked_in_at"])
+    return already, session
+
+
+def _toggle_session_checkin(attendee, session, day=None):
+    """Staff toggle for one session on a specific day (defaults to today)."""
+    event = attendee.event
+    day = day or _today()
+    session = (
+        session
+        if event.sessions == Event.Sessions.SPLIT
+        and session in ("morning", "afternoon")
+        else AttendanceLog.Session.SINGLE
+    )
+    log, _ = AttendanceLog.objects.get_or_create(
+        attendee=attendee, day=day, session=session
+    )
+    if log.checked_in_at is None:
+        log.checked_in_at = timezone.now()
+        log.save(update_fields=["checked_in_at"])
+    else:
+        log.delete()
+    has_any = AttendanceLog.objects.filter(
+        attendee=attendee, checked_in_at__isnull=False
+    ).exists()
+    attendee.checked_in_at = timezone.now() if has_any else None
+    attendee.save(update_fields=["checked_in_at"])
 
 
 # ---------------------------------------------------------------------------
@@ -98,6 +192,7 @@ def event_page(request, slug):
             "recent": recent,
             "share_link": share_link,
             "about_paragraphs": about_paragraphs,
+            "materials": event.materials.all(),
         },
     )
 
@@ -109,12 +204,33 @@ def event_qrcode(request, slug):
     return qr_png_response(url, fill_color=brand.primary_color)
 
 
+def event_materials(request, slug):
+    event = get_object_or_404(Event, slug=slug)
+    brand = _brand(event)
+    materials = event.materials.all()
+    sections = [
+        (value, label, [m for m in materials if m.kind == value])
+        for value, label in MeetingMaterial.Kind.choices
+    ]
+    sections = [(value, label, items) for value, label, items in sections if items]
+    return render(
+        request,
+        "Events/materials.html",
+        {
+            "event": event,
+            "brand": brand,
+            "sections": sections,
+            "materials": materials,
+        },
+    )
+
+
 def event_count_json(request, slug):
     event = get_object_or_404(Event, slug=slug)
     return JsonResponse(
         {
             "registered": event.registered_count,
-            "checked_in": event.checked_in_count,
+            "checked_in": event.checked_in_today_count,
             "capacity": event.capacity,
         }
     )
@@ -124,12 +240,15 @@ def register(request, slug):
     event = get_object_or_404(Event, slug=slug)
     brand = _brand(event)
     logos = event.logos.all()
+    split = event.sessions == Event.Sessions.SPLIT
     pre_names = list(
         event.attendees.filter(source=Attendee.Source.PRE_REGISTERED)
         .order_by("full_name")
         .values_list("full_name", flat=True)
     )
     closed = event.status == Event.Status.CLOSED
+    current_session = _current_session(event)
+    session_label = _session_label(event, current_session)
 
     if closed:
         return render(
@@ -140,6 +259,7 @@ def register(request, slug):
                 "brand": brand,
                 "logos": logos,
                 "closed": True,
+                "today": _today(),
             },
         )
 
@@ -160,17 +280,16 @@ def register(request, slug):
             form.cleaned_data.get("email", ""),
         )
         _save_attendee_institution(att, form)
-        was_checked_in = att.checked_in_at is not None
-        if not was_checked_in:
-            att.checked_in_at = timezone.now()
-            att.save(update_fields=["checked_in_at"])
+        already, session = _record_check_in(att)
         status = (
-            "welcome_back" if was_checked_in else ("matched" if not created else "walk_in")
+            "welcome_back" if already else ("matched" if not created else "walk_in")
         )
-        return HttpResponseRedirect(
+        redirect = (
             reverse("events:success", kwargs={"slug": event.slug})
             + f"?name={quote(att.full_name)}&status={status}"
+            + f"&session={session}&day={_today().isoformat()}"
         )
+        return HttpResponseRedirect(redirect)
 
     return render(
         request,
@@ -181,6 +300,10 @@ def register(request, slug):
             "logos": logos,
             "form": form,
             "pre_names": pre_names,
+            "split": split,
+            "today": _today(),
+            "current_session": current_session,
+            "session_label": session_label,
         },
     )
 
@@ -191,6 +314,14 @@ def success(request, slug):
     logos = event.logos.all()
     name = request.GET.get("name", "")
     status = request.GET.get("status", "")
+    session = request.GET.get("session", "")
+    day_param = request.GET.get("day", "")
+    day = _today()
+    if day_param:
+        try:
+            day = datetime.date.fromisoformat(day_param)
+        except ValueError:
+            pass
     return render(
         request,
         "Events/success.html",
@@ -200,6 +331,12 @@ def success(request, slug):
             "logos": logos,
             "attendee_name": name,
             "status": status,
+            "session": session or _current_session(event),
+            "day": day,
+            "split": event.sessions == Event.Sessions.SPLIT,
+            "morning_label": event.morning_label,
+            "afternoon_label": event.afternoon_label,
+            "materials": event.materials.all(),
         },
     )
 
@@ -238,11 +375,21 @@ def control_stats(request):
         walk=Count(
             "attendees", filter=Q(attendees__source=Attendee.Source.WALK_IN)
         ),
+        morn=Count(
+            "attendees__attendance_logs",
+            filter=Q(attendees__attendance_logs__session=AttendanceLog.Session.MORNING),
+        ),
+        aft=Count(
+            "attendees__attendance_logs",
+            filter=Q(attendees__attendance_logs__session=AttendanceLog.Session.AFTERNOON),
+        ),
     )
     totals = {
         "events": Event.objects.count(),
         "registrations": sum(e.total for e in events),
         "check_ins": sum(e.checked for e in events),
+        "morning": sum(e.morn for e in events),
+        "afternoon": sum(e.aft for e in events),
     }
     if totals["registrations"]:
         totals["conversion"] = round(100 * totals["check_ins"] / totals["registrations"])
@@ -274,13 +421,27 @@ def stats_csv(request):
     response["Content-Disposition"] = "attachment; filename=stats.csv"
     writer = csv.writer(response)
     writer.writerow(
-        ["Event", "Status", "Date", "Registrations", "Checked in", "Conversion %"]
+        [
+            "Event",
+            "Status",
+            "Date",
+            "Registrations",
+            "Checked in",
+            "Conversion %",
+            "Morning",
+            "Afternoon",
+        ]
     )
     for ev in Event.objects.all():
         reg = ev.registered_count
         chk = ev.checked_in_count
         conv = round(100 * chk / reg) if reg else 0
-        writer.writerow([ev.name, ev.get_status_display(), ev.date or "", reg, chk, conv])
+        log_qs = AttendanceLog.objects.filter(attendee__event=ev)
+        morning = log_qs.filter(session=AttendanceLog.Session.MORNING).count()
+        afternoon = log_qs.filter(session=AttendanceLog.Session.AFTERNOON).count()
+        writer.writerow(
+            [ev.name, ev.get_status_display(), ev.date or "", reg, chk, conv, morning, afternoon]
+        )
     return response
 
 
@@ -293,6 +454,7 @@ def event_create(request):
             brand = _save_brand(event, form)
             _add_new_institution(event, form)
             _save_logos(event, form.cleaned_data.get("logo"), brand)
+            _save_materials(event, form)
             messages.success(request, f"Event '{event.name}' created.")
             return HttpResponseRedirect(
                 reverse("events:event_detail", kwargs={"pk": event.pk})
@@ -338,8 +500,7 @@ def event_detail(request, pk):
         elif action == "toggle_checkin":
             att_id = request.POST.get("attendee_id")
             att = get_object_or_404(Attendee, pk=att_id, event=event)
-            att.checked_in_at = timezone.now() if att.checked_in_at is None else None
-            att.save(update_fields=["checked_in_at"])
+            _toggle_session_checkin(att, request.POST.get("session", ""))
         elif action == "delete_attendee":
             att_id = request.POST.get("attendee_id")
             get_object_or_404(Attendee, pk=att_id, event=event).delete()
@@ -353,6 +514,20 @@ def event_detail(request, pk):
             reverse("events:event_detail", kwargs={"pk": pk}) + f"?q={quote(q)}"
         )
 
+    attendees = list(attendees)
+    today = _today()
+    today_logs = AttendanceLog.objects.filter(
+        attendee__event=event, day=today, checked_in_at__isnull=False
+    )
+    morning_times = {}
+    afternoon_times = {}
+    for log in today_logs:
+        target = morning_times if log.session == "morning" else afternoon_times
+        target[log.attendee_id] = log.checked_in_at
+    for att in attendees:
+        att.morning_time = morning_times.get(att.pk)
+        att.afternoon_time = afternoon_times.get(att.pk)
+
     return render(
         request,
         "Events/control/event_detail.html",
@@ -360,7 +535,9 @@ def event_detail(request, pk):
             "event": event,
             "brand": brand,
             "attendees": attendees,
+            "attendee_count": len(attendees),
             "q": q,
+            "today": today,
             "add_form": add_form,
         },
     )
@@ -372,26 +549,48 @@ def event_stats(request, pk):
     brand = _brand(event)
     now = timezone.localtime(timezone.now())
 
-    # Per-hour histogram (event day or last 24h)
+    dates = _event_dates(event)
+    selected = None
+    day_param = request.GET.get("day")
+    if day_param:
+        try:
+            selected = datetime.date.fromisoformat(day_param)
+        except ValueError:
+            selected = None
+    if selected not in dates:
+        today = _today()
+        selected = today if today in dates else (dates[-1] if dates else None)
+
+    day_logs = AttendanceLog.objects.filter(
+        attendee__event=event, day=selected
+    )
+
+    # Per-hour histogram for the selected day
     hourly = []
-    if event.date:
+    if selected:
         base = timezone.make_aware(
-            timezone.datetime.combine(event.date, event.start_time or datetime.time.min)
+            timezone.datetime.combine(selected, event.start_time or datetime.time.min)
         )
     else:
         base = now - datetime.timedelta(hours=24)
     for h in range(25):
         t = base + datetime.timedelta(hours=h)
         t_next = t + datetime.timedelta(hours=1)
-        count = event.attendees.filter(
-            checked_in_at__gte=t, checked_in_at__lt=t_next
-        ).count()
+        count = day_logs.filter(checked_in_at__gte=t, checked_in_at__lt=t_next).count()
         hourly.append({"label": t.strftime("%H:%M"), "count": count})
     max_hourly = max((b["count"] for b in hourly), default=1) or 1
 
     pre_count = event.attendees.filter(source=Attendee.Source.PRE_REGISTERED).count()
     walk_count = event.attendees.filter(source=Attendee.Source.WALK_IN).count()
     max_source = max(pre_count, walk_count, 1)
+
+    morning_count = day_logs.filter(
+        session=AttendanceLog.Session.MORNING
+    ).count()
+    afternoon_count = day_logs.filter(
+        session=AttendanceLog.Session.AFTERNOON
+    ).count()
+    max_session = max(morning_count, afternoon_count, 1)
 
     return render(
         request,
@@ -404,6 +603,11 @@ def event_stats(request, pk):
             "pre_count": pre_count,
             "walk_count": walk_count,
             "max_source": max_source,
+            "morning_count": morning_count,
+            "afternoon_count": afternoon_count,
+            "max_session": max_session,
+            "days": dates,
+            "selected_day": selected,
         },
     )
 
@@ -419,6 +623,7 @@ def event_edit(request, pk):
             brand = _save_brand(event, form)
             _add_new_institution(event, form)
             _save_logos(event, form.cleaned_data.get("logo"), brand)
+            _save_materials(event, form)
             messages.success(request, "Event updated.")
             return HttpResponseRedirect(
                 reverse("events:event_detail", kwargs={"pk": pk})
@@ -438,13 +643,24 @@ def event_edit(request, pk):
                 "attending_institutions": list(
                     event.attending_institutions.all()
                 ),
+                "sessions": event.sessions,
+                "morning_label": event.morning_label,
+                "afternoon_label": event.afternoon_label,
             },
         )
     logos = event.logos.all()
+    materials = event.materials.all()
     return render(
         request,
         "Events/control/event_form.html",
-        {"form": form, "editing": True, "event": event, "logos": logos},
+        {
+            "form": form,
+            "editing": True,
+            "event": event,
+            "logos": logos,
+            "materials": materials,
+            "share_link": checkin_url(event),
+        },
     )
 
 
@@ -465,11 +681,17 @@ def event_csv(request, pk):
             "Source",
             "Registered at",
             "Checked in",
+            "Sessions attended",
         ]
     )
     for att in event.attendees.all():
         institution = (
             att.institution.name if att.institution_id else att.institution_other
+        )
+        sessions = " / ".join(
+            f"{log.day:%m-%d} {log.get_session_display()} "
+            f"{log.checked_in_at:%H:%M}" if log.checked_in_at else f"{log.day:%m-%d} {log.get_session_display()}"
+            for log in att.attendance_logs.all()
         )
         writer.writerow(
             [
@@ -480,6 +702,7 @@ def event_csv(request, pk):
                 att.get_source_display(),
                 att.registered_at.strftime("%Y-%m-%d %H:%M:%S") if att.registered_at else "",
                 att.checked_in_at.strftime("%Y-%m-%d %H:%M:%S") if att.checked_in_at else "",
+                sessions,
             ]
         )
     return response
@@ -514,13 +737,24 @@ def delete_logo(request, pk):
 
 
 @staff_member_required(login_url="admin:login")
+def delete_material(request, pk):
+    material = get_object_or_404(MeetingMaterial, pk=pk)
+    event_pk = material.event_id
+    if request.method == "POST":
+        if material.file:
+            material.file.delete(save=False)
+        material.delete()
+        messages.success(request, "Material removed.")
+    return HttpResponseRedirect(
+        reverse("events:event_edit", kwargs={"pk": event_pk})
+    )
+
+
+@staff_member_required(login_url="admin:login")
 def toggle_checkin(request, pk):
     att = get_object_or_404(Attendee, pk=pk)
     if request.method == "POST":
-        att.checked_in_at = (
-            timezone.now() if att.checked_in_at is None else None
-        )
-        att.save(update_fields=["checked_in_at"])
+        _toggle_session_checkin(att, request.POST.get("session", ""))
     return HttpResponseRedirect(
         reverse("events:event_detail", kwargs={"pk": att.event_id})
         + "#attendees"
@@ -602,6 +836,24 @@ def _save_logos(event, logo_file, brand):
                 "gradient_to",
             ]
         )
+
+
+def _save_materials(event, form):
+    title = (form.cleaned_data.get("material_title") or "").strip()
+    if not title:
+        return
+    body = (form.cleaned_data.get("material_body") or "").strip()
+    link = (form.cleaned_data.get("material_link") or "").strip()
+    file_val = form.cleaned_data.get("material_file")
+    MeetingMaterial.objects.create(
+        event=event,
+        kind=form.cleaned_data.get("material_kind") or MeetingMaterial.Kind.DOCUMENT,
+        title=title,
+        body=body,
+        file=file_val if file_val else None,
+        link=link,
+        sort_order=event.materials.count(),
+    )
 
 
 def _save_attendee_institution(attendee, form):

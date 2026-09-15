@@ -21,12 +21,33 @@
     <span class="stat-label">Capacity</span>
     <strong class="stat-value">{{ event.capacity|default:"&ndash;" }}</strong>
   </div>
+  {% if event.sessions == "split" %}
+    <div class="stat-card">
+      <span class="stat-label">{{ event.morning_label }} &middot; {{ selected_day|date:"M j" }}</span>
+      <strong class="stat-value">{{ morning_count }}</strong>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">{{ event.afternoon_label }} &middot; {{ selected_day|date:"M j" }}</span>
+      <strong class="stat-value">{{ afternoon_count }}</strong>
+    </div>
+  {% endif %}
 </div>
+
+{% if days %}
+<form method="get" class="day-selector">
+  <label for="day">Showing:</label>
+  <select name="day" id="day" onchange="this.form.submit()">
+    {% for d in days %}
+      <option value="{{ d|date:'Y-m-d' }}" {% if d == selected_day %}selected{% endif %}>{{ d|date:"l, F j, Y" }}</option>
+    {% endfor %}
+  </select>
+</form>
+{% endif %}
 
 <div class="split">
   <section class="card">
     <div class="card-head">
-      <h2 class="section-title">Check-ins by hour</h2>
+      <h2 class="section-title">Check-ins by hour &middot; {{ selected_day|date:"M j" }}</h2>
       <a class="btn ghost btn-sm" href="{% url 'events:event_csv' pk=event.pk %}">
         <svg class="icon"><use href="#i-download"/></svg> Attendees CSV
       </a>
@@ -59,10 +80,30 @@
         <strong>{{ walk_count }}</strong>
       </div>
     </div>
+    {% if event.sessions == "split" %}
+    <hr class="divider" />
+    <h3 class="section-title">Sessions &middot; {{ selected_day|date:"M j" }}</h3>
+    <div class="source-rows">
+      <div class="source-row">
+        <span>{{ event.morning_label }}</span>
+        <div class="bar-track">
+          <div class="bar bar-accent" style="--bar-width: {% widthratio morning_count max_session 100 %}%"></div>
+        </div>
+        <strong>{{ morning_count }}</strong>
+      </div>
+      <div class="source-row">
+        <span>{{ event.afternoon_label }}</span>
+        <div class="bar-track">
+          <div class="bar bar-primary" style="--bar-width: {% widthratio afternoon_count max_session 100 %}%"></div>
+        </div>
+        <strong>{{ afternoon_count }}</strong>
+      </div>
+    </div>
+    {% endif %}
     <hr class="divider" />
     <h3 class="section-title">Overview</h3>
     <ul class="kv-list">
-      <li><span>Date</span><strong>{{ event.date|date:"F j, Y" }}</strong></li>
+      <li><span>Date</span><strong>{% if event.date %}{{ event.date|date:"F j, Y" }}{% if event.end_date and event.end_date > event.date %} &ndash; {{ event.end_date|date:"F j, Y" }}{% endif %}{% else %}&ndash;{% endif %}</strong></li>
       <li><span>Time</span><strong>{{ event.start_time|time:"g:i A"|default:"&ndash;" }}{% if event.end_time %} &ndash; {{ event.end_time|time:"g:i A" }}{% endif %}</strong></li>
       <li><span>Venue</span><strong>{{ event.venue|default:"&ndash;" }}</strong></li>
       <li><span>Slug</span><strong>/events/{{ event.slug }}/</strong></li>

@@ -36,7 +36,7 @@
 
     <ul class="chips chips--hero ev-meta">
       {% if event.date %}
-        <li><svg class="icon"><use href="#i-calendar"/></svg> {{ event.date|date:"D, M j Y" }}</li>
+        <li><svg class="icon"><use href="#i-calendar"/></svg> {{ event.date|date:"D, M j Y" }}{% if event.end_date and event.end_date > event.date %}&ndash;{{ event.end_date|date:"D, M j Y" }}{% endif %}</li>
       {% endif %}
       {% if event.start_time %}
         <li><svg class="icon"><use href="#i-clock"/></svg> {{ event.start_time|time:"g:i A" }}{% if event.end_time %}&ndash;{{ event.end_time|time:"g:i A" }}{% endif %}</li>
@@ -112,6 +112,12 @@
         <svg class="icon"><use href="#i-copy"/></svg> Copy
       </button>
     </div>
+    {% if materials %}
+    <a class="ticket-link" href="{% url 'events:event_materials' slug=event.slug %}">
+      <svg class="icon"><use href="#i-file"/></svg> Meeting materials
+      <span class="muted">{{ materials|length }}</span>
+    </a>
+    {% endif %}
     <div class="live-count" data-event-slug="{{ event.slug }}">
       <svg class="icon"><use href="#i-users"/></svg>
       <span><strong data-live-count>–</strong> people checked in</span>

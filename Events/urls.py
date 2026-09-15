@@ -12,6 +12,7 @@ urlpatterns = [
     path("events/<slug:slug>/count.json", views.event_count_json, name="event_count"),
     path("events/<slug:slug>/register/", views.register, name="register"),
     path("events/<slug:slug>/success/", views.success, name="success"),
+    path("events/<slug:slug>/materials/", views.event_materials, name="event_materials"),
     # control centre
     path("control/", views.control_dashboard, name="control_dashboard"),
     path("control/stats/", views.control_stats, name="control_stats"),
@@ -23,6 +24,7 @@ urlpatterns = [
     path("control/events/<int:pk>/attendees.csv", views.event_csv, name="event_csv"),
     path("control/events/<int:pk>/status/", views.event_set_status, name="event_set_status"),
     path("control/logo/<int:pk>/delete/", views.delete_logo, name="delete_logo"),
+    path("control/material/<int:pk>/delete/", views.delete_material, name="delete_material"),
     path("control/attendee/<int:pk>/toggle/", views.toggle_checkin, name="toggle_checkin"),
     path("control/attendee/<int:pk>/delete/", views.delete_attendee, name="delete_attendee"),
 ]

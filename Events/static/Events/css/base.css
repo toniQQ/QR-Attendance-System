@@ -1036,3 +1036,128 @@ button {
     margin-top: -72px;
   }
 }
+
+/* Sessions ---------------------------------------------------------------- */
+
+.session-confirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  background: #f0fdf9;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Meeting materials page --------------------------------------------------- */
+
+.ticket-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--ev-primary);
+  font-weight: 700;
+  font-size: 13.5px;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ticket-link:hover {
+  border-color: var(--ev-primary);
+  background: color-mix(in srgb, var(--ev-primary) 6%, transparent);
+}
+
+.ticket-link .icon {
+  color: currentColor;
+}
+
+.materials-card {
+  width: 100%;
+  max-width: 680px;
+  text-align: left;
+  padding: 30px 32px 26px;
+  box-shadow: var(--shadow-lg);
+}
+
+.materials-card .greeting {
+  text-align: center;
+}
+
+.materials-card .lead {
+  text-align: center;
+}
+
+.materials-group {
+  margin-top: 24px;
+}
+
+.materials-group .section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.materials-group .section-title .icon {
+  width: 20px;
+  height: 20px;
+  color: var(--ev-primary);
+}
+
+.material {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: var(--bg);
+}
+
+.material-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.material-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.material-title a {
+  color: var(--ev-primary);
+}
+
+.material-title a:hover {
+  text-decoration: underline;
+}
+
+.material-body {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.materials-actions {
+  justify-content: center;
+  margin-top: 26px;
+  flex-wrap: wrap;
+}

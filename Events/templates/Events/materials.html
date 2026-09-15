@@ -1,0 +1,76 @@
+{% extends "Events/base.html" %}
+{% load static %}
+
+{% block title %}Meeting materials &middot; {{ event.name }}{% endblock %}
+
+{% block var_primary %}{{ brand.primary_color }}{% endblock %}
+{% block var_accent %}{{ brand.accent_color }}{% endblock %}
+{% block var_grad_from %}{{ brand.gradient_from }}{% endblock %}
+{% block var_grad_to %}{{ brand.gradient_to }}{% endblock %}
+
+{% block body %}
+<div class="grad-band"></div>
+<main class="wrap center-wrap">
+  <div class="card materials-card">
+    <a class="back-link" href="{% url 'events:event_page' slug=event.slug %}">
+      <svg class="icon"><use href="#i-arrow-right"/></svg> Back to event
+    </a>
+
+    <h1 class="greeting">Meeting materials</h1>
+    <p class="lead">Everything you need for {{ event.name }}.</p>
+
+    {% if materials %}
+      {% for value, label, items in sections %}
+        <section class="materials-group">
+          <h2 class="section-title">
+            <svg class="icon">
+              <use href="#{% if value == 'document' %}i-file{% elif value == 'wifi' %}i-wifi{% elif value == 'instructions' %}i-clipboard{% elif value == 'rooms' %}i-building{% elif value == 'itinerary' %}i-map-pin{% else %}i-calendar{% endif %}" />
+            </svg>
+            {{ label }}
+          </h2>
+          {% for m in items %}
+            <article class="material">
+              <div class="material-row">
+                <div class="material-title">
+                  {% if m.file or m.link %}
+                    <a href="{{ m.file.url|default:m.link }}" target="_blank" rel="noopener">{{ m.title }}</a>
+                  {% else %}
+                    <strong>{{ m.title }}</strong>
+                  {% endif %}
+                </div>
+                {% if m.file %}
+                  <a class="btn ghost btn-sm" href="{{ m.file.url }}" target="_blank" rel="noopener">
+                    <svg class="icon"><use href="#i-download"/></svg> Download
+                  </a>
+                {% elif m.link %}
+                  <a class="btn ghost btn-sm" href="{{ m.link }}" target="_blank" rel="noopener">
+                    <svg class="icon"><use href="#i-external"/></svg> Open
+                  </a>
+                {% endif %}
+              </div>
+              {% if m.body %}
+                <p class="material-body">{{ m.body|linebreaksbr }}</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </section>
+      {% endfor %}
+    {% else %}
+      <div class="closed-state">
+        <svg class="icon icon-lg"><use href="#i-file"/></svg>
+        <h2>No materials yet</h2>
+        <p>Materials haven't been shared for this event yet. Please check with an organizer.</p>
+      </div>
+    {% endif %}
+
+    <div class="actions materials-actions">
+      <a class="btn ghost" href="{% url 'events:event_page' slug=event.slug %}">
+        <svg class="icon"><use href="#i-arrow-right"/></svg> Back to event
+      </a>
+      <a class="btn" href="{% url 'events:register' slug=event.slug %}">
+        <svg class="icon"><use href="#i-user-check"/></svg> Check in
+      </a>
+    </div>
+  </div>
+</main>
+{% endblock %}

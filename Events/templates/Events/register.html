@@ -31,7 +31,14 @@
 
     {% if brand.show_event_info and not closed %}
       <ul class="chips">
-        {% if event.date %}
+        <li>
+          <svg class="icon"><use href="#i-calendar"/></svg>
+          Checking in for {{ today|date:"l, F j, Y" }}
+          {% if split and session_label %}&middot; {{ session_label }}{% endif %}
+        </li>
+        {% if event.end_date and event.end_date > event.date %}
+          <li><svg class="icon"><use href="#i-clock"/></svg> Event runs {{ event.date|date:"M j" }}&ndash;{{ event.end_date|date:"M j, Y" }}</li>
+        {% elif event.date %}
           <li><svg class="icon"><use href="#i-calendar"/></svg> {{ event.date|date:"l, F j, Y" }}</li>
         {% endif %}
         {% if event.start_time %}
@@ -50,7 +57,10 @@
         <p>Check-in is no longer accepting entries. Please see an organizer.</p>
       </div>
     {% else %}
-      <p class="hint">Enter your details below to mark yourself present.</p>
+      <p class="hint">
+        Enter your details below to mark yourself present.
+        {% if split and session_label %}Your {{ session_label }} check-in will be logged automatically.{% endif %}
+      </p>
 
       <form method="post" class="checkin-form">
         {% csrf_token %}
@@ -85,6 +95,6 @@
 </main>
 
 <footer class="footer">
-  <div class="wrap">{{ event.name }} &middot; {{ event.date|date:"M j, Y"|default:"Local event" }}</div>
+  <div class="wrap">{{ event.name }} &middot; {{ today|date:"M j, Y"|default:"Local event" }}</div>
 </footer>
 {% endblock %}

@@ -78,10 +78,31 @@
     sync();
   }
 
+  /* Delete buttons that use fetch instead of nested forms */
+  function bindDeleteButtons() {
+    document.querySelectorAll('[data-delete-url]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var msg = btn.dataset.confirm || 'Delete?';
+        if (!confirm(msg)) return;
+        var csrf = document.querySelector(
+          'input[name="csrfmiddlewaretoken"]'
+        );
+        fetch(btn.dataset.deleteUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': csrf ? csrf.value : '' }
+        }).then(function () {
+          window.location.reload();
+        });
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     bindLiveCounts();
     bindCopyButtons();
     bindColorPreview();
     bindInstitutionOther();
+    bindDeleteButtons();
   });
 })();

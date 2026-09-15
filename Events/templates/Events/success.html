@@ -15,10 +15,27 @@
     <div class="success-icon"><svg class="icon"><use href="#i-check"/></svg></div>
     {% if status == "welcome_back" %}
       <h1>You're all set, {{ attendee_name|default:"friend" }}</h1>
-      <p class="lead">You had already checked in to this event.</p>
+      <p class="lead">
+        {% if split and session %}
+          Your {% if session == "morning" %}{{ morning_label }}{% else %}{{ afternoon_label }}{% endif %} check-in for {{ day|date:"l, M j" }} was already recorded.
+        {% else %}
+          You had already checked in to this event on {{ day|date:"l, M j" }}.
+        {% endif %}
+      </p>
     {% else %}
       <h1>You're checked in!</h1>
       {% if attendee_name %}<p class="lead">Welcome, <strong>{{ attendee_name }}</strong>.</p>{% endif %}
+      {% if split and session %}
+        <p class="lead session-confirmed">
+          <svg class="icon"><use href="#i-user-check"/></svg>
+          {% if session == "morning" %}{{ morning_label }}{% else %}{{ afternoon_label }}{% endif %} check-in confirmed for {{ day|date:"l, M j" }}
+        </p>
+      {% else %}
+        <p class="lead session-confirmed">
+          <svg class="icon"><use href="#i-user-check"/></svg>
+          Checked in for {{ day|date:"l, M j" }}
+        </p>
+      {% endif %}
     {% endif %}
 
     {% if logos %}
@@ -35,12 +52,27 @@
     </div>
 
     <div class="success-actions">
-      <a class="btn" href="{% url 'events:event_page' slug=event.slug %}">
+      {% if materials %}
+        <a class="btn" href="{% url 'events:event_materials' slug=event.slug %}">
+          <svg class="icon"><use href="#i-file"/></svg> View meeting materials
+        </a>
+      {% endif %}
+      {% if status == "welcome_back" %}
+        <button class="btn ghost" type="button" disabled title="Already checked in for today">
+          <svg class="icon"><use href="#i-check"/></svg> Already checked in
+        </button>
+      {% else %}
+        <a class="btn ghost" href="{% url 'events:register' slug=event.slug %}">Check in again</a>
+      {% endif %}
+      <a class="btn ghost" href="{% url 'events:event_page' slug=event.slug %}">
         <svg class="icon"><use href="#i-external"/></svg> View event
       </a>
-      <a class="btn ghost" href="{% url 'events:register' slug=event.slug %}">Check in again</a>
     </div>
-    <p class="hint">You may now close this page.</p>
+    {% if status == "welcome_back" %}
+      <p class="hint">No need to check in again — your attendance is already recorded.</p>
+    {% else %}
+      <p class="hint">You may now close this page.</p>
+    {% endif %}
   </div>
 </main>
 {% endblock %}
