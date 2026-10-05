@@ -11,20 +11,35 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _env_bool(name, default=False):
+    return os.environ.get(name, str(default)).lower() in ("1", "true", "yes", "on")
+
+
+def _env_list(name, default):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-%&4dfwaayogd!r)=ot3hi1ybepd=s9d%$gkcomne)rq-a&fnmq"
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-%&4dfwaayogd!r)=ot3hi1ybepd=s9d%$gkcomne)rq-a&fnmq",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _env_bool("DJANGO_DEBUG", True)
 
 import socket
 
@@ -38,7 +53,25 @@ except OSError:
     # still boots. QR encoding will point at 127.0.0.1 in that case.
     ip = "127.0.0.1"
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver", f"{ip}"]
+ALLOWED_HOSTS = _env_list(
+    "DJANGO_ALLOWED_HOSTS",
+    ["127.0.0.1", "localhost", "testserver", f"{ip}"],
+)
+
+CSRF_TRUSTED_ORIGINS = _env_list("DJANGO_CSRF_TRUSTED_ORIGINS", [])
+
+# Public base URL encoded into QR codes and share links (e.g.
+# "https://conference.intelligentso.com"). Leave empty to auto-detect the
+# LAN IP for offline/college-LAN hosting.
+SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "")
+
+# Production security switches, opt-in via env so local dev is unaffected.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", True)
+    CSRF_COOKIE_SECURE = _env_bool("DJANGO_SECURE_COOKIES", True)
+    SECURE_SSL_REDIRECT = _env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
 
 
 # Application definition
@@ -87,13 +120,28 @@ WSGI_APPLICATION = "QR_Attendance_System.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+#
+# Defaults to SQLite for dev and the offline college-LAN setup. Set
+# DB_ENGINE=postgres for production (concurrent writes from gunicorn workers).
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if os.environ.get("DB_ENGINE") == "postgres":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", "qr_attendance"),
+            "USER": os.environ.get("DB_USER", "conference"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get("DB_HOST", "localhost"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -130,7 +178,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Uploaded assets (event logos, site logo)
 MEDIA_URL = "/media/"

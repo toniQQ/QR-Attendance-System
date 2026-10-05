@@ -20,6 +20,16 @@ def _local_ip():
 
 
 def local_base_url(port=LAN_PORT):
+    """Return the base URL used for QR codes and share links.
+
+    When ``SITE_BASE_URL`` is configured (production), it wins. Otherwise
+    fall back to the LAN IP + port used for offline/college-LAN hosting.
+    """
+    from django.conf import settings
+
+    configured = getattr(settings, "SITE_BASE_URL", "")
+    if configured:
+        return configured.rstrip("/")
     return f"http://{_local_ip()}:{port}"
 
 

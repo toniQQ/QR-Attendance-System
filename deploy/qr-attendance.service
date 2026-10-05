@@ -1,0 +1,21 @@
+[Unit]
+Description=Gunicorn daemon for QR Attendance System (conference.intelligentso.com)
+After=network.target
+
+[Service]
+Type=notify
+User=quinto
+Group=quinto
+WorkingDirectory=/home/quinto/QR-Attendance-System
+Environment="PATH=/home/quinto/QR-Attendance-System/venv/bin"
+EnvironmentFile=/home/quinto/QR-Attendance-System/.env
+ExecStart=/home/quinto/QR-Attendance-System/venv/bin/gunicorn \
+    --config /home/quinto/QR-Attendance-System/deploy/gunicorn.conf.py \
+    QR_Attendance_System.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

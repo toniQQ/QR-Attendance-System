@@ -4,3 +4,7 @@ db.sqlite3
 media/
 AGENTS.md
 .playwright-mcp/
+staticfiles/
+venv/
+.env
+logs/
